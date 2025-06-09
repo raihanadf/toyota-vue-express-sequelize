@@ -3,21 +3,21 @@
     "username": "toyota",
     "password": "newvadas",
     "database": "toyotadb",
-    "host": "127.0.0.1",
+    "host": "db",
     "dialect": "postgres"
   },
   "test": {
     "username": "toyota",
     "password": "newvadas",
     "database": "toyotadb",
-    "host": "127.0.0.1",
+    "host": "db",
     "dialect": "postgres"
   },
   "production": {
     "username": "toyota",
     "password": "newvadas",
     "database": "toyotadb",
-    "host": "127.0.0.1",
+    "host": "db",
     "dialect": "postgres"
   }
 }

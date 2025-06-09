@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Backend
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - DB_HOST=db
+      - DB_NAME=toyotadb
+      - DB_USER=toyota
+      - DB_PASSWORD=newvadas
+      - NODE_ENV=development
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # postgresql db
+  db:
+    image: postgres:13-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=toyota
+      - POSTGRES_PASSWORD=newvadas
+      - POSTGRES_DB=toyotadb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toyota -d toyotadb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
