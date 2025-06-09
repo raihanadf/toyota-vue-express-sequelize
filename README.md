@@ -23,6 +23,7 @@ Nanti bakal jalan:
 Buat bikin tabel di database:
 
 ```bash
+# tetep di folder yang sama saat up/build docker
 docker-compose exec backend npx sequelize-cli db:migrate
 ```
 
@@ -31,6 +32,7 @@ docker-compose exec backend npx sequelize-cli db:migrate
 Masukin data contoh:
 
 ```bash
+# tetep di folder yang sama saat up/build docker
 docker-compose exec backend npx sequelize-cli db:seed:all
 ```
 
