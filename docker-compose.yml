@@ -24,11 +24,13 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+      - "24678:24678"  # Add this for HMR
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # Required for file watching
     depends_on:
       - backend
     restart: unless-stopped
