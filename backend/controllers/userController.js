@@ -1,11 +1,12 @@
 const db = require('../models');
 const User = db.User;
+const { Op } = require('sequelize');
 
 // Create
 exports.create = async (req, res) => {
   try {
     const { name, email } = req.body;
-
+    
     if (!name || !email) {
       return res.status(400).send({
         message: "Name and email are required"
@@ -26,11 +27,42 @@ exports.create = async (req, res) => {
   }
 };
 
-// List
+// List with pagination and search
 exports.findAll = async (req, res) => {
   try {
-    const users = await User.findAll();
-    return res.status(200).json(users);
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const offset = (pageNum - 1) * limitNum;
+    
+    const whereCondition = search ? {
+      [Op.or]: [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ]
+    } : {};
+    
+    const { count, rows } = await User.findAndCountAll({
+      where: whereCondition,
+      limit: limitNum,
+      offset: offset,
+      order: [['id', 'ASC']]
+    });
+    
+    const totalPages = Math.ceil(count / limitNum);
+    
+    return res.status(200).json({
+      users: rows,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: totalPages,
+        totalItems: count,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    });
   } catch (error) {
     return res.status(500).json({
       message: error.message || "Some error occurred while retrieving users."
@@ -43,13 +75,13 @@ exports.findOne = async (req, res) => {
   try {
     const id = req.params.id;
     const user = await User.findByPk(id);
-
+    
     if (!user) {
       return res.status(404).json({
         message: `User with id=${id} not found`
       });
     }
-
+    
     return res.status(200).json(user);
   } catch (error) {
     return res.status(500).json({
@@ -63,7 +95,7 @@ exports.update = async (req, res) => {
   try {
     const id = req.params.id;
     const { name, email } = req.body;
-
+    
     if (!name || !email) {
       return res.status(400).send({
         message: "Name and email are required"
@@ -73,7 +105,7 @@ exports.update = async (req, res) => {
     const [num] = await User.update({ name, email }, {
       where: { id }
     });
-
+    
     if (num === 1) {
       const updatedUser = await User.findByPk(id);
       return res.status(200).json(updatedUser);
@@ -101,7 +133,7 @@ exports.delete = async (req, res) => {
     const num = await User.destroy({
       where: { id }
     });
-
+    
     if (num === 1) {
       return res.status(200).json({
         message: "User was deleted successfully!"

@@ -1,11 +1,24 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 const users = ref([])
 const loading = ref(true)
 const error = ref(null)
 const success = ref(null)
+
+// Search and pagination
+const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = ref(5)
+const pagination = ref({
+  currentPage: 1,
+  totalPages: 1,
+  totalItems: 0,
+  itemsPerPage: 5,
+  hasNextPage: false,
+  hasPrevPage: false
+})
 
 const newUser = ref({
   name: '',
@@ -32,11 +45,19 @@ const validateForm = (user = newUser.value) => {
   return true
 }
 
-const fetchUsers = async () => {
+const fetchUsers = async (page = currentPage.value, search = searchQuery.value) => {
   loading.value = true
   try {
-    const response = await axios.get('http://localhost:3000/users')
-    users.value = response.data
+    const params = {
+      page: page,
+      limit: itemsPerPage.value,
+      search: search
+    }
+    
+    const response = await axios.get('http://localhost:3000/users', { params })
+    users.value = response.data.users
+    pagination.value = response.data.pagination
+    currentPage.value = response.data.pagination.currentPage
     error.value = null
   } catch (err) {
     error.value = 'Failed to fetch users: ' + (err.response?.data?.message || err.message)
@@ -52,11 +73,11 @@ const createUser = async () => {
   loading.value = true
   try {
     const response = await axios.post('http://localhost:3000/users', newUser.value)
-    users.value.push(response.data)
     success.value = 'User created successfully!'
     error.value = null
-
     newUser.value = { name: '', email: '' }
+    
+    await fetchUsers()
   } catch (err) {
     error.value = 'Failed to create user: ' +
       (err.response?.data?.message || err.message)
@@ -89,14 +110,12 @@ const updateUser = async () => {
       email: currentUser.value.email
     })
 
-    const index = users.value.findIndex(u => u.id === currentUser.value.id)
-    if (index !== -1) {
-      users.value[index] = { ...response.data }
-    }
-
     success.value = 'User updated successfully!'
     error.value = null
     showDetails.value = false
+    
+    // Refresh the list
+    await fetchUsers()
   } catch (err) {
     error.value = 'Failed to update user: ' +
       (err.response?.data?.message || err.message)
@@ -113,10 +132,12 @@ const deleteUser = async (id) => {
   loading.value = true
   try {
     await axios.delete(`http://localhost:3000/users/${id}`)
-    users.value = users.value.filter(user => user.id !== id)
     success.value = 'User deleted successfully!'
     error.value = null
     showDetails.value = false
+    
+    // Refresh the list
+    await fetchUsers()
   } catch (err) {
     error.value = 'Failed to delete user: ' +
       (err.response?.data?.message || err.message)
@@ -140,12 +161,52 @@ const clearMessages = () => {
   }, 3000)
 }
 
-onMounted(fetchUsers)
+const handleSearch = () => {
+  currentPage.value = 1
+  fetchUsers(1, searchQuery.value)
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  currentPage.value = 1
+  fetchUsers(1, '')
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.totalPages) {
+    currentPage.value = page
+    fetchUsers(page, searchQuery.value)
+  }
+}
+
+const nextPage = () => {
+  if (pagination.value.hasNextPage) {
+    goToPage(currentPage.value + 1)
+  }
+}
+
+const prevPage = () => {
+  if (pagination.value.hasPrevPage) {
+    goToPage(currentPage.value - 1)
+  }
+}
+
+// Watch for search query changes with debounce
+let searchTimeout
+watch(searchQuery, (newQuery) => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    currentPage.value = 1
+    fetchUsers(1, newQuery)
+  }, 500)
+})
+
+onMounted(() => fetchUsers())
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-900 text-green-400 font-mono p-4">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <h1 class="text-2xl font-bold mb-4 text-green-300">> USER_MANAGEMENT_CONSOLE</h1>
 
       <!-- Error message -->
@@ -191,31 +252,67 @@ onMounted(fetchUsers)
         <!-- Users List -->
         <div class="bg-gray-800 border border-gray-700 rounded p-4">
           <h2 class="text-lg font-semibold mb-3 text-green-300">> USERS_LIST</h2>
-          <div v-if="loading && users.length === 0" class="text-center py-4 text-gray-500 text-sm">
+          
+          <!-- Search Bar -->
+          <div class="mb-3 flex gap-2">
+            <input v-model="searchQuery"
+              class="bg-gray-900 border border-gray-600 text-green-400 rounded flex-1 py-2 px-3 text-sm font-mono focus:outline-none focus:border-green-500"
+              type="text" placeholder="search_users...">
+            <button @click="clearSearch"
+              class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-mono text-xs py-2 px-3 rounded">
+              CLEAR
+            </button>
+          </div>
+
+          <div v-if="loading" class="text-center py-4 text-gray-500 text-sm">
             LOADING_USERS...
           </div>
           <div v-else-if="users.length === 0" class="text-center py-4 text-gray-500 text-sm">
-            NO_USERS_FOUND
+            {{ searchQuery ? 'NO_USERS_FOUND_FOR_SEARCH' : 'NO_USERS_FOUND' }}
           </div>
-          <div v-else class="space-y-2 max-h-64 overflow-y-auto">
-            <div v-for="user in users" :key="user.id"
-              class="bg-gray-900 border border-gray-700 rounded p-2 flex justify-between items-center">
-              <div class="flex-1 min-w-0">
-                <p class="text-green-300 text-sm font-semibold truncate">{{ user.name }}</p>
-                <p class="text-gray-400 text-xs truncate">{{ user.email }}</p>
+          <div v-else>
+            <div class="space-y-2 max-h-64 overflow-y-auto mb-3">
+              <div v-for="user in users" :key="user.id"
+                class="bg-gray-900 border border-gray-700 rounded p-2 flex justify-between items-center">
+                <div class="flex-1 min-w-0">
+                  <p class="text-green-300 text-sm font-semibold truncate">{{ user.name }}</p>
+                  <p class="text-gray-400 text-xs truncate">{{ user.email }}</p>
+                </div>
+                <div class="flex gap-1 ml-2">
+                  <button @click="viewUser(user)"
+                    class="bg-blue-700 hover:bg-blue-600 text-white text-xs font-mono py-1 px-2 rounded">
+                    VIEW
+                  </button>
+                  <button @click="editUser(user)"
+                    class="bg-yellow-700 hover:bg-yellow-600 text-black text-xs font-mono py-1 px-2 rounded">
+                    EDIT
+                  </button>
+                  <button @click="deleteUser(user.id)"
+                    class="bg-red-700 hover:bg-red-600 text-white text-xs font-mono py-1 px-2 rounded">
+                    DEL
+                  </button>
+                </div>
               </div>
-              <div class="flex gap-1 ml-2">
-                <button @click="viewUser(user)"
-                  class="bg-blue-700 hover:bg-blue-600 text-white text-xs font-mono py-1 px-2 rounded">
-                  VIEW
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex justify-between items-center text-xs">
+              <div class="text-gray-400">
+                {{ (pagination.currentPage - 1) * pagination.itemsPerPage + 1 }}-{{ 
+                  Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems) 
+                }} of {{ pagination.totalItems }}
+              </div>
+              <div class="flex gap-1">
+                <button @click="prevPage" :disabled="!pagination.hasPrevPage"
+                  class="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-gray-300 font-mono text-xs py-1 px-2 rounded">
+                  PREV
                 </button>
-                <button @click="editUser(user)"
-                  class="bg-yellow-700 hover:bg-yellow-600 text-black text-xs font-mono py-1 px-2 rounded">
-                  EDIT
-                </button>
-                <button @click="deleteUser(user.id)"
-                  class="bg-red-700 hover:bg-red-600 text-white text-xs font-mono py-1 px-2 rounded">
-                  DEL
+                <span class="text-gray-400 py-1 px-2">
+                  {{ pagination.currentPage }}/{{ pagination.totalPages }}
+                </span>
+                <button @click="nextPage" :disabled="!pagination.hasNextPage"
+                  class="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-gray-300 font-mono text-xs py-1 px-2 rounded">
+                  NEXT
                 </button>
               </div>
             </div>
