@@ -5,7 +5,7 @@ const User = db.User;
 exports.create = async (req, res) => {
   try {
     const { name, email } = req.body;
-    
+
     if (!name || !email) {
       return res.status(400).send({
         message: "Name and email are required"
@@ -43,13 +43,13 @@ exports.findOne = async (req, res) => {
   try {
     const id = req.params.id;
     const user = await User.findByPk(id);
-    
+
     if (!user) {
       return res.status(404).json({
         message: `User with id=${id} not found`
       });
     }
-    
+
     return res.status(200).json(user);
   } catch (error) {
     return res.status(500).json({
@@ -63,7 +63,7 @@ exports.update = async (req, res) => {
   try {
     const id = req.params.id;
     const { name, email } = req.body;
-    
+
     if (!name || !email) {
       return res.status(400).send({
         message: "Name and email are required"
@@ -73,11 +73,10 @@ exports.update = async (req, res) => {
     const [num] = await User.update({ name, email }, {
       where: { id }
     });
-    
+
     if (num === 1) {
-      return res.status(200).json({
-        message: "User was updated successfully."
-      });
+      const updatedUser = await User.findByPk(id);
+      return res.status(200).json(updatedUser);
     } else {
       return res.status(404).json({
         message: `Cannot update User with id=${id}. Maybe User was not found or req.body is empty!`
@@ -102,7 +101,7 @@ exports.delete = async (req, res) => {
     const num = await User.destroy({
       where: { id }
     });
-    
+
     if (num === 1) {
       return res.status(200).json({
         message: "User was deleted successfully!"

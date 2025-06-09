@@ -16,16 +16,16 @@ const currentUser = ref(null)
 const isEditing = ref(false)
 const showDetails = ref(false)
 
-const validateForm = () => {
-  if (!newUser.value.name.trim()) {
+const validateForm = (user = newUser.value) => {
+  if (!user.name.trim()) {
     error.value = 'Name is required'
     return false
   }
-  if (!newUser.value.email.trim()) {
+  if (!user.email.trim()) {
     error.value = 'Email is required'
     return false
   }
-  if (!/^\S+@\S+\.\S+$/.test(newUser.value.email)) {
+  if (!/^\S+@\S+\.\S+$/.test(user.email)) {
     error.value = 'Please enter a valid email address'
     return false
   }
@@ -80,18 +80,18 @@ const editUser = (user) => {
 }
 
 const updateUser = async () => {
-  if (!validateForm()) return
+  if (!validateForm(currentUser.value)) return
 
   loading.value = true
   try {
-    await axios.put(`http://localhost:3000/users/${currentUser.value.id}`, {
+    const response = await axios.put(`http://localhost:3000/users/${currentUser.value.id}`, {
       name: currentUser.value.name,
       email: currentUser.value.email
     })
 
     const index = users.value.findIndex(u => u.id === currentUser.value.id)
     if (index !== -1) {
-      users.value[index] = { ...currentUser.value }
+      users.value[index] = { ...response.data }
     }
 
     success.value = 'User updated successfully!'
