@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "toyota",
+    "password": "newvadas",
+    "database": "toyotadb",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "toyota",
+    "password": "newvadas",
+    "database": "toyotadb",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "toyota",
+    "password": "newvadas",
+    "database": "toyotadb",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}
